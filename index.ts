@@ -1,5 +1,6 @@
 
 import * as fs from 'fs';
+import { hostname } from 'os';
 
 let numPhotos: number;
 let photos: Photo[] = [];
@@ -173,11 +174,30 @@ function calculateTagScore(photo: Photo): number {
 
 function solve() {
 
-    // Sort TagEntries by most popular (UNUSED)
+    // Sort TagEntries by most popular
     // let tagEntries: TagEntry[] = Array.from(allTags.values());
     // tagEntries = tagEntries.sort((tagEntry1, tagEntry2) => {
     //     return tagEntry2.photoIds.length - tagEntry1.photoIds.length
-    // })
+    // });
+
+    // let sortedPhotoIds: number[] = [];
+
+    // tagEntries.forEach(tagEntry => {
+    //     tagEntry.photoIds.forEach(photoId => {
+    //         sortedPhotoIds.push(photoId);
+    //     })
+    // });
+
+    // sortedPhotoIds = [...new Set<number>(sortedPhotoIds)];
+
+    // let sortedPhotos: Photo[] = [];
+
+    // for (let photoId of sortedPhotoIds) {
+    //     let photo = photos[photoId];
+    //     sortedPhotos.push(photo);
+    // }
+
+    // photos = sortedPhotos;
 
     // Sort photos by their tag score
     photos = photos.sort((photo1, photo2) => {
@@ -189,11 +209,12 @@ function solve() {
     const horizontalPhotos: Photo[] = photos.filter(photo => photo.orientation === 'H');
     const verticalPhotos: Photo[] = photos.filter(photo => photo.orientation === 'V');
 
-    const slides: Slide[] = [];
+    const horizontalSlides: Slide[] = [];
+    const verticalSlides: Slide[] = [];
 
     for (const photo of horizontalPhotos) {
         let slide: Slide = createHorizontalSlide(photo);
-        slides.push(slide);
+        horizontalSlides.push(slide);
     }
 
     for (let i = 0; i < verticalPhotos.length; i += 2) {
@@ -205,8 +226,24 @@ function solve() {
             verticalPhotos[i],
             verticalPhotos[i + 1]
         );
-        slides.push(slide);
+        verticalSlides.push(slide);
     }
+
+    // Zip arrays together
+    let slides: Slide[] = [];
+
+    slides = [...horizontalSlides, ...verticalSlides];
+
+    // let maxLength = Math.max(horizontalSlides.length, verticalSlides.length);
+
+    // for(var i = 0; i < maxLength; i++) {
+    //     if (i < horizontalSlides.length) {
+    //         slides.push(horizontalSlides[i]);
+    //     }
+    //     if (i < verticalSlides.length) {
+    //         slides.push(verticalSlides[i]);
+    //     }
+    // }
 
     return slides;
 }
