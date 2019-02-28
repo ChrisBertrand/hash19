@@ -3,10 +3,6 @@ exports.__esModule = true;
 var fs = require("fs");
 var files = [
     "./files/a_example.txt",
-    "./files/b_lovely_landscapes.txt",
-    "./files/c_memorable_moments.txt",
-    "./files/d_pet_pictures.txt",
-    "./files/e_shiny_selfies.txt"
 ];
 var numPhotos;
 var photos = [];
@@ -25,6 +21,7 @@ function readFile(filename) {
         if (!line) {
             return "continue";
         }
+        line = line.trim();
         var parts = line.split(" ");
         var orientation_1 = parts[0];
         var numTags = parseFloat(parts[1]);
@@ -38,14 +35,18 @@ function readFile(filename) {
             tags: tags,
             isSelected: false
         };
+        console.log(photo.tags);
         photo.tags.forEach(function (tag) {
             var photoIds = allTags.get(tag);
             if (photoIds) {
                 photoIds.push(photo.id);
+                console.log('tag ' + tag + ' added to existing list');
             }
             else {
                 photoIds = [photo.id];
+                console.log('tag ' + tag + ' added to new list');
             }
+            allTags.set(tag, photoIds);
         });
         photoIndex++;
         photos.push(photo);
@@ -117,6 +118,7 @@ files.forEach(function (f) {
     // Solve this file
     readFile(f);
     var slides = solve();
+    console.log(allTags);
     // Create output
     var slideshow = {
         slides: slides,

@@ -3,10 +3,10 @@ import * as fs from 'fs';
 
 const files = [
     "./files/a_example.txt",
-    "./files/b_lovely_landscapes.txt",
-    "./files/c_memorable_moments.txt",
-    "./files/d_pet_pictures.txt",
-    "./files/e_shiny_selfies.txt"
+    // "./files/b_lovely_landscapes.txt",
+    // "./files/c_memorable_moments.txt",
+    // "./files/d_pet_pictures.txt",
+    // "./files/e_shiny_selfies.txt"
 ];
 
 let numPhotos: number;
@@ -48,11 +48,13 @@ function readFile(filename: string) {
     let photoIndex: number = 0;
 
     // Establish parameters
-    for (const line of dataByLine) {
+    for (let line of dataByLine) {
 
         if (!line) {
             continue;
         }
+
+        line = line.trim();
 
         let parts: string[] = line.split(" ");
         let orientation: string = parts[0];
@@ -77,6 +79,7 @@ function readFile(filename: string) {
             } else {
                 photoIds = [photo.id];
             }
+            allTags.set(tag, photoIds);
         });
 
         photoIndex++;
@@ -159,6 +162,8 @@ files.forEach(f => {
     // Solve this file
     readFile(f);
     const slides: Slide[] = solve();
+
+    console.log(allTags);
 
     // Create output
     const slideshow: Slideshow = {

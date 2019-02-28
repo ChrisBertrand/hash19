@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/ChrisBertrand/hash19#readme",
   "devDependencies": {
+    "@types/core-js": "^2.5.0",
     "@types/node": "^11.9.5"
   }
 }
