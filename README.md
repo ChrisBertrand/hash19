@@ -6,7 +6,7 @@ Repo for the Quali Round
 
     npm install -g typescript@latest
     npm install
-    mkdir .output
+    mkdir output
 
 ## Build
 
