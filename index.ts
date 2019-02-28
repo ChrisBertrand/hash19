@@ -1,13 +1,6 @@
 
 import * as fs from 'fs';
 
-const files = [
-    "./files/a_example.txt",
-    // "./files/b_lovely_landscapes.txt",
-    // "./files/c_memorable_moments.txt",
-    // "./files/d_pet_pictures.txt",
-    // "./files/e_shiny_selfies.txt"
-];
 
 let numPhotos: number;
 let photos: Photo[] = [];
@@ -92,7 +85,7 @@ function readFile(filename: string) {
 
 function createOutput(slideshow : Slideshow, file: string) {
     console.log('file', file);
-    let wstream = fs.createWriteStream(`.output/${file}.output`);
+    let wstream = fs.createWriteStream(`output/${file}.output`);
     wstream.write(slideshow.slides.length + '\n');
     slideshow.slides.forEach((s: Slide) => {
         s.photos.forEach((photo) => {
@@ -104,13 +97,43 @@ function createOutput(slideshow : Slideshow, file: string) {
 }
  
 function getScore(slideshow: Slideshow) {
- //slideshow.slides.forEach(slide => slide..)
+    let score = 0;
+
+    for (let i = 0; i < slideshow.slides.length; i++) {
+        if (i == slideshow.slides.length - 1) break;
+        score += compareSlides(slideshow.slides[i], slideshow.slides[i + 1]);
+}
+
+    return score;
 }
 
 function compareSlides(slide1: Slide, slide2: Slide) {
-    let factor1: number; 
-    let factor2: number;
-    let factor3: number;
+
+    let commonTags = 0;
+    for (let tag of slide1.tags) {
+        if (slide2.tags.includes(tag)) {
+            commonTags++;
+            continue;
+}
+    }
+
+    let uncommonLeftTags = 0;
+    for (let tag of slide1.tags) {
+        if (!slide2.tags.includes(tag)) {
+            uncommonLeftTags++;
+            continue;
+        }
+    }
+
+    let uncommonRightTags = 0;
+    for (let tag of slide2.tags) {
+        if (!slide1.tags.includes(tag)) {
+            uncommonRightTags++;
+            continue;
+        }
+    }
+
+    return Math.min(commonTags, uncommonLeftTags, uncommonRightTags);
 }
 
 function createVerticalSlide(photo1: Photo, photo2: Photo) {
@@ -156,6 +179,14 @@ function solve() {
     return slides;
 }
 
+const files = [
+    "./files/a_example.txt"
+    /*"./files/b_lovely_landscapes.txt",
+    "./files/c_memorable_moments.txt",
+    "./files/d_pet_pictures.txt",
+    "./files/e_shiny_selfies.txt"*/
+];
+
 // Solve all files
 files.forEach(f => {
     
@@ -170,6 +201,8 @@ files.forEach(f => {
         slides,
         score: 0
     };
+    slideshow.score = getScore(slideshow);
+    console.log(f + ': ' + slideshow.score);
     createOutput(
         slideshow, 
         f.substring(f.lastIndexOf('/')+1, f.lastIndexOf("."))
