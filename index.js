@@ -33,20 +33,21 @@ function readFile(filename) {
             id: photoIndex,
             orientation: orientation_1,
             tags: tags,
-            isSelected: false
+            isSelected: false,
+            tagScore: 0
         };
-        console.log(photo.tags);
         photo.tags.forEach(function (tag) {
-            var photoIds = allTags.get(tag);
-            if (photoIds) {
-                photoIds.push(photo.id);
-                console.log('tag ' + tag + ' added to existing list');
+            var tagEntry = allTags.get(tag);
+            if (tagEntry) {
+                tagEntry.photoIds.push(photo.id);
             }
             else {
-                photoIds = [photo.id];
-                console.log('tag ' + tag + ' added to new list');
+                tagEntry = {
+                    tag: tag,
+                    photoIds: [photo.id]
+                };
             }
-            allTags.set(tag, photoIds);
+            allTags.set(tag, tagEntry);
         });
         photoIndex++;
         photos.push(photo);
@@ -61,7 +62,7 @@ function readFile(filename) {
 }
 function createOutput(slideshow, file) {
     console.log('file', file);
-    var wstream = fs.createWriteStream(".output/" + file + ".output");
+    var wstream = fs.createWriteStream("output/" + file + ".output");
     wstream.write(slideshow.slides.length + '\n');
     slideshow.slides.forEach(function (s) {
         s.photos.forEach(function (photo) {
@@ -96,7 +97,29 @@ function createHorizontalSlide(photo) {
         tags: photo.tags
     };
 }
+function calculateTagScore(photo) {
+    var score = 0;
+    photo.tags.forEach(function (tag) {
+        var tagEntry = allTags.get(tag);
+        if (tagEntry) {
+            score += tagEntry.photoIds.length;
+        }
+    });
+    return score;
+}
 function solve() {
+    // Sort TagEntries by most popular (UNUSED)
+    var tagEntries = Array.from(allTags.values());
+    tagEntries = tagEntries.sort(function (tagEntry1, tagEntry2) {
+        return tagEntry2.photoIds.length - tagEntry1.photoIds.length;
+    });
+    // Sort photos by their tag score
+    photos.sort(function (photo1, photo2) {
+        photo1.tagScore = calculateTagScore(photo1);
+        photo2.tagScore = calculateTagScore(photo2);
+        return photo2.tagScore - photo1.tagScore;
+    });
+    console.log(photos);
     var slides = [];
     for (var _i = 0, horizontalPhotos_1 = horizontalPhotos; _i < horizontalPhotos_1.length; _i++) {
         var photo = horizontalPhotos_1[_i];
@@ -111,6 +134,7 @@ function solve() {
         var slide = createVerticalSlide(verticalPhotos[i], verticalPhotos[i + 1]);
         slides.push(slide);
     }
+    console.log(slides);
     return slides;
 }
 // Solve all files
@@ -118,7 +142,6 @@ files.forEach(function (f) {
     // Solve this file
     readFile(f);
     var slides = solve();
-    console.log(allTags);
     // Create output
     var slideshow = {
         slides: slides,

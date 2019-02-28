@@ -12,16 +12,19 @@ const files = [
 let numPhotos: number;
 let photos: Photo[] = [];
 
-let horizontalPhotos: Photo[] = [];
-let verticalPhotos: Photo[] = [];
+let allTags: Map<string, TagEntry> = new Map<string, TagEntry>();
 
-let allTags: Map<string, number[]> = new Map<string, number[]>();
+interface TagEntry {
+    tag: string;
+    photoIds: number[]
+}
 
 interface Photo {
     id: number;
     orientation: string;
     tags: string[];
     isSelected: boolean;
+    tagScore: number;
 }
 
 interface Slide {
@@ -69,30 +72,31 @@ function readFile(filename: string) {
             id: photoIndex,
             orientation,
             tags,
-            isSelected: false
+            isSelected: false,
+            tagScore: 0
         };
 
         photo.tags.forEach(tag => {
-            let photoIds: number[] | undefined = allTags.get(tag);
-            if (photoIds) {
-                photoIds.push(photo.id);
+            let tagEntry: TagEntry | undefined = allTags.get(tag);
+            if (tagEntry) {
+                tagEntry.photoIds.push(photo.id);
             } else {
-                photoIds = [photo.id];
+                tagEntry = {
+                    tag,
+                    photoIds: [photo.id]
+                }
             }
-            allTags.set(tag, photoIds);
+            allTags.set(tag, tagEntry);
         });
 
         photoIndex++;
         photos.push(photo);
     }
-    
-    horizontalPhotos = photos.filter(photo => photo.orientation === 'H');
-    verticalPhotos = photos.filter(photo => photo.orientation === 'V');
 }
 
 function createOutput(slideshow : Slideshow, file: string) {
     console.log('file', file);
-    let wstream = fs.createWriteStream(`.output/${file}.output`);
+    let wstream = fs.createWriteStream(`output/${file}.output`);
     wstream.write(slideshow.slides.length + '\n');
     slideshow.slides.forEach((s: Slide) => {
         s.photos.forEach((photo) => {
@@ -132,7 +136,34 @@ function createHorizontalSlide(photo: Photo) {
     };
 }
 
+function calculateTagScore(photo: Photo): number {
+    let score = 0;
+    photo.tags.forEach(tag => {
+        let tagEntry: TagEntry | undefined = allTags.get(tag);
+        if (tagEntry) {
+            score += tagEntry.photoIds.length;
+        }
+    });
+    return score;
+}
+
 function solve() {
+
+    // Sort TagEntries by most popular (UNUSED)
+    let tagEntries: TagEntry[] = Array.from(allTags.values());
+    tagEntries = tagEntries.sort((tagEntry1, tagEntry2) => {
+        return tagEntry2.photoIds.length - tagEntry1.photoIds.length
+    })
+
+    // Sort photos by their tag score
+    photos.sort((photo1, photo2) => {
+        photo1.tagScore = calculateTagScore(photo1);
+        photo2.tagScore = calculateTagScore(photo2);
+        return photo2.tagScore - photo1.tagScore;
+    });
+
+    const horizontalPhotos: Photo[] = photos.filter(photo => photo.orientation === 'H');
+    const verticalPhotos: Photo[] = photos.filter(photo => photo.orientation === 'V');
 
     const slides: Slide[] = [];
 
@@ -162,8 +193,6 @@ files.forEach(f => {
     // Solve this file
     readFile(f);
     const slides: Slide[] = solve();
-
-    console.log(allTags);
 
     // Create output
     const slideshow: Slideshow = {
