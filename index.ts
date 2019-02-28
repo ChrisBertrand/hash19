@@ -1,7 +1,6 @@
 
 import * as fs from 'fs';
 
-
 let numPhotos: number;
 let photos: Photo[] = [];
 
@@ -92,10 +91,12 @@ function createOutput(slideshow : Slideshow, file: string) {
     let wstream = fs.createWriteStream(`output/${file}.output`);
     wstream.write(slideshow.slides.length + '\n');
     slideshow.slides.forEach((s: Slide) => {
+        let outputLine = '';
         s.photos.forEach((photo) => {
-            wstream.write(`${photo.id} `)
+            outputLine += `${photo.id} `;
         });
-        wstream.write(`\n`);
+        outputLine += `\n`;
+        wstream.write(outputLine);
     });
     wstream.end();
 }
@@ -146,7 +147,7 @@ function createVerticalSlide(photo1: Photo, photo2: Photo) {
     tags = tags.concat(photo2.tags);
     let tagSet: Set<string> = new Set(tags);
     let slide: Slide = {
-        photos,
+        photos: [photo1, photo2],
         tags: Array.from(tagSet.values())
     };
     return slide;
@@ -173,13 +174,13 @@ function calculateTagScore(photo: Photo): number {
 function solve() {
 
     // Sort TagEntries by most popular (UNUSED)
-    let tagEntries: TagEntry[] = Array.from(allTags.values());
-    tagEntries = tagEntries.sort((tagEntry1, tagEntry2) => {
-        return tagEntry2.photoIds.length - tagEntry1.photoIds.length
-    })
+    // let tagEntries: TagEntry[] = Array.from(allTags.values());
+    // tagEntries = tagEntries.sort((tagEntry1, tagEntry2) => {
+    //     return tagEntry2.photoIds.length - tagEntry1.photoIds.length
+    // })
 
     // Sort photos by their tag score
-    photos.sort((photo1, photo2) => {
+    photos = photos.sort((photo1, photo2) => {
         photo1.tagScore = calculateTagScore(photo1);
         photo2.tagScore = calculateTagScore(photo2);
         return photo2.tagScore - photo1.tagScore;
@@ -210,16 +211,24 @@ function solve() {
     return slides;
 }
 
+function reset() {
+    numPhotos = 0;
+    photos = [];
+    allTags = new Map<string, TagEntry>();
+}
+
 const files = [
-    "./files/a_example.txt"
-    /*"./files/b_lovely_landscapes.txt",
+    "./files/a_example.txt",
+    "./files/b_lovely_landscapes.txt",
     "./files/c_memorable_moments.txt",
     "./files/d_pet_pictures.txt",
-    "./files/e_shiny_selfies.txt"*/
+    "./files/e_shiny_selfies.txt"
 ];
 
 // Solve all files
 files.forEach(f => {
+
+    reset();
     
     // Solve this file
     readFile(f);
