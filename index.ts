@@ -22,3 +22,4 @@ function createOutput(obj : any) {
 }
 
 readFile("./input/a_example.in");
+
