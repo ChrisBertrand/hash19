@@ -25,6 +25,12 @@ interface Slide {
     tags: string[];
 }
 
+interface SlidePair {
+    slide1: Slide;
+    slide2: Slide;
+    score: Number;
+}
+
 interface Slideshow {
     slides: Slide[],
     score: number
@@ -107,7 +113,9 @@ function getScore(slideshow: Slideshow) {
 
     for (let i = 0; i < slideshow.slides.length; i++) {
         if (i == slideshow.slides.length - 1) break;
-        score += compareSlides(slideshow.slides[i], slideshow.slides[i + 1]);
+        let slideScore = compareSlides(slideshow.slides[i], slideshow.slides[i + 1]);
+        //console.log(`Slide ${i} Score: ${slideScore}`);
+        score += slideScore
 }
 
     return score;
@@ -172,33 +180,48 @@ function calculateTagScore(photo: Photo): number {
     return score;
 }
 
-function solve() {
+function calculateTagScoreForSlide(slide: Slide): number {
+    let score = 0;
+    slide.photos.forEach(photo => {
+        photo.tags.forEach(tag => {
+            let tagEntry: TagEntry | undefined = allTags.get(tag);
+            if (tagEntry) {
+                score += tagEntry.photoIds.length;
+            }
+        });
+    });
+    return score;
+}
 
-    // Sort TagEntries by most popular
-    // let tagEntries: TagEntry[] = Array.from(allTags.values());
-    // tagEntries = tagEntries.sort((tagEntry1, tagEntry2) => {
-    //     return tagEntry2.photoIds.length - tagEntry1.photoIds.length
-    // });
+function popularSolve() {
+     // Sort TagEntries by most popular
+    let tagEntries: TagEntry[] = Array.from(allTags.values());
+    tagEntries = tagEntries.sort((tagEntry1, tagEntry2) => {
+        return tagEntry2.photoIds.length - tagEntry1.photoIds.length
+    });
 
-    // let sortedPhotoIds: number[] = [];
+    let sortedPhotoIds: number[] = [];
 
-    // tagEntries.forEach(tagEntry => {
-    //     tagEntry.photoIds.forEach(photoId => {
-    //         sortedPhotoIds.push(photoId);
-    //     })
-    // });
+    tagEntries.forEach(tagEntry => {
+        tagEntry.photoIds.forEach(photoId => {
+            sortedPhotoIds.push(photoId);
+        })
+    });
 
-    // sortedPhotoIds = [...new Set<number>(sortedPhotoIds)];
+    sortedPhotoIds = [...new Set<number>(sortedPhotoIds)];
 
-    // let sortedPhotos: Photo[] = [];
+    let sortedPhotos: Photo[] = [];
 
-    // for (let photoId of sortedPhotoIds) {
-    //     let photo = photos[photoId];
-    //     sortedPhotos.push(photo);
-    // }
+    for (let photoId of sortedPhotoIds) {
+        let photo = photos[photoId];
+        sortedPhotos.push(photo);
+    }
 
-    // photos = sortedPhotos;
+    photos = sortedPhotos;
 
+    return putTogether(photos, false);
+}
+function tagSolve() {
     // Sort photos by their tag score
     photos = photos.sort((photo1, photo2) => {
         photo1.tagScore = calculateTagScore(photo1);
@@ -206,6 +229,10 @@ function solve() {
         return photo2.tagScore - photo1.tagScore;
     });
 
+    return putTogether(photos, true);
+}
+
+function putTogether(photos: Photo[], finalSort: Boolean) {
     const horizontalPhotos: Photo[] = photos.filter(photo => photo.orientation === 'H');
     const verticalPhotos: Photo[] = photos.filter(photo => photo.orientation === 'V');
 
@@ -234,6 +261,26 @@ function solve() {
 
     slides = [...horizontalSlides, ...verticalSlides];
 
+    if (finalSort){
+        for (let l = 0; l < 20; l++){
+            for (let s = 0; s < slides.length - 2; s++){
+                let s1 = slides[s];
+                let s2 = slides[s + 1];
+                let score = compareSlides(s1, s2);
+
+                let s3 = slides[s + 2];
+                let score2 = compareSlides(s1, s3);
+
+                //console.log(`score1: ${score} score2: ${score2}`);
+                if (score2 > score) {
+                    var b = slides[s+2];
+                    slides[s+2] = slides[s+1];
+                    slides[s+1] = b;
+                }
+            }
+        }
+    }
+
     // let maxLength = Math.max(horizontalSlides.length, verticalSlides.length);
 
     // for(var i = 0; i < maxLength; i++) {
@@ -244,7 +291,6 @@ function solve() {
     //         slides.push(verticalSlides[i]);
     //     }
     // }
-
     return slides;
 }
 
@@ -255,7 +301,7 @@ function reset() {
 }
 
 const files = [
-    "./files/a_example.txt",
+    // "./files/a_example.txt",
     "./files/b_lovely_landscapes.txt",
     "./files/c_memorable_moments.txt",
     "./files/d_pet_pictures.txt",
@@ -264,20 +310,25 @@ const files = [
 
 // Solve all files
 files.forEach(f => {
-
     reset();
     
     // Solve this file
     readFile(f);
-    const slides: Slide[] = solve();
-
+    
+    let slides: Slide[] = tagSolve();
     // Create output
-    const slideshow: Slideshow = {
-        slides,
-        score: 0
-    };
+    let slideshow: Slideshow = {slides: slides,score: 0};
     slideshow.score = getScore(slideshow);
-    console.log(f + ': ' + slideshow.score);
+    let score1 = slideshow.score;
+
+    console.log(f + ': Score1 ' + score1);
+
+    // let slides2: Slide[] = popularSolve();
+    // // Create output
+    // let slideshow2: Slideshow = {slides: slides2,score: 0};
+    // slideshow2.score = getScore(slideshow2);
+    // let score2 = slideshow2.score;
+
     createOutput(
         slideshow, 
         f.substring(f.lastIndexOf('/')+1, f.lastIndexOf("."))
