@@ -1,6 +1,5 @@
 
 import * as fs from 'fs';
-import { hostname } from 'os';
 
 let numPhotos: number;
 let photos: Photo[] = [];
@@ -180,19 +179,6 @@ function calculateTagScore(photo: Photo): number {
     return score;
 }
 
-function calculateTagScoreForSlide(slide: Slide): number {
-    let score = 0;
-    slide.photos.forEach(photo => {
-        photo.tags.forEach(tag => {
-            let tagEntry: TagEntry | undefined = allTags.get(tag);
-            if (tagEntry) {
-                score += tagEntry.photoIds.length;
-            }
-        });
-    });
-    return score;
-}
-
 function popularSolve() {
      // Sort TagEntries by most popular
     let tagEntries: TagEntry[] = Array.from(allTags.values());
@@ -221,7 +207,7 @@ function popularSolve() {
 
     return putTogether(photos, false);
 }
-function tagSolve() {
+function tagSolve(finalsort:Boolean) {
     // Sort photos by their tag score
     photos = photos.sort((photo1, photo2) => {
         photo1.tagScore = calculateTagScore(photo1);
@@ -229,7 +215,7 @@ function tagSolve() {
         return photo2.tagScore - photo1.tagScore;
     });
 
-    return putTogether(photos, true);
+    return putTogether(photos, finalsort);
 }
 
 function putTogether(photos: Photo[], finalSort: Boolean) {
@@ -262,8 +248,8 @@ function putTogether(photos: Photo[], finalSort: Boolean) {
     slides = [...horizontalSlides, ...verticalSlides];
 
     if (finalSort){
-        for (let l = 0; l < 20; l++){
-            for (let s = 0; s < slides.length - 2; s++){
+        for (let l = 0; l < 15; l++){
+            for (let s = 0; s < slides.length - 4; s++){
                 let s1 = slides[s];
                 let s2 = slides[s + 1];
                 let score = compareSlides(s1, s2);
@@ -271,11 +257,19 @@ function putTogether(photos: Photo[], finalSort: Boolean) {
                 let s3 = slides[s + 2];
                 let score2 = compareSlides(s1, s3);
 
+                let s4 = slides[s + 3];
+                let score3 = compareSlides(s1, s4);
+
                 //console.log(`score1: ${score} score2: ${score2}`);
-                if (score2 > score) {
+                if (score2 > score && score3 < score2) {
                     var b = slides[s+2];
                     slides[s+2] = slides[s+1];
                     slides[s+1] = b;
+                }
+                else if (score3 > score) {
+                    var c = slides[s+3];
+                    slides[s+3] = slides[s+1];
+                    slides[s+1] = c;
                 }
             }
         }
@@ -315,7 +309,7 @@ files.forEach(f => {
     // Solve this file
     readFile(f);
     
-    let slides: Slide[] = tagSolve();
+    let slides: Slide[] = tagSolve(true);
     // Create output
     let slideshow: Slideshow = {slides: slides,score: 0};
     slideshow.score = getScore(slideshow);
@@ -328,6 +322,16 @@ files.forEach(f => {
     // let slideshow2: Slideshow = {slides: slides2,score: 0};
     // slideshow2.score = getScore(slideshow2);
     // let score2 = slideshow2.score;
+
+    console.log(f + ': Score1 ' + score1);
+
+    let slides3: Slide[] = tagSolve(false);
+    // Create output
+    let slideshow3: Slideshow = {slides: slides3,score: 0};
+    slideshow3.score = getScore(slideshow3);
+    let score3 = slideshow3.score;
+
+    console.log(f + ': Score3 ' + score3);
 
     createOutput(
         slideshow, 
