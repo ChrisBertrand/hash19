@@ -1,5 +1,6 @@
 
 import * as fs from 'fs';
+import { SIGUSR1 } from 'constants';
 
 let numPhotos: number;
 let photos: Photo[] = [];
@@ -9,6 +10,12 @@ let allTags: Map<string, TagEntry> = new Map<string, TagEntry>();
 interface TagEntry {
     tag: string;
     photoIds: number[]
+}
+
+interface slideScore {
+    id: number;
+    checkid: number;
+    score: number;
 }
 
 interface Photo {
@@ -22,6 +29,7 @@ interface Photo {
 interface Slide {
     photos: Photo[];
     tags: string[];
+    checked: boolean;
 }
 
 interface SlidePair {
@@ -156,7 +164,8 @@ function createVerticalSlide(photo1: Photo, photo2: Photo) {
     let tagSet: Set<string> = new Set(tags);
     let slide: Slide = {
         photos: [photo1, photo2],
-        tags: Array.from(tagSet.values())
+        tags: Array.from(tagSet.values()),
+        checked : false
     };
     return slide;
 }
@@ -164,7 +173,8 @@ function createVerticalSlide(photo1: Photo, photo2: Photo) {
 function createHorizontalSlide(photo: Photo) {
     return {
         photos: [photo],
-        tags: photo.tags
+        tags: photo.tags,
+        checked: false
     };
 }
 
@@ -205,9 +215,9 @@ function popularSolve() {
 
     photos = sortedPhotos;
 
-    return putTogether(photos, false);
+    return putTogether(photos);
 }
-function tagSolve(finalsort:Boolean) {
+function tagSolve() {
     // Sort photos by their tag score
     photos = photos.sort((photo1, photo2) => {
         photo1.tagScore = calculateTagScore(photo1);
@@ -215,10 +225,10 @@ function tagSolve(finalsort:Boolean) {
         return photo2.tagScore - photo1.tagScore;
     });
 
-    return putTogether(photos, finalsort);
+    return putTogether(photos);
 }
 
-function putTogether(photos: Photo[], finalSort: Boolean) {
+function putTogether(photos: Photo[]) {
     const horizontalPhotos: Photo[] = photos.filter(photo => photo.orientation === 'H');
     const verticalPhotos: Photo[] = photos.filter(photo => photo.orientation === 'V');
 
@@ -247,34 +257,6 @@ function putTogether(photos: Photo[], finalSort: Boolean) {
 
     slides = [...horizontalSlides, ...verticalSlides];
 
-    if (finalSort){
-        for (let l = 0; l < 15; l++){
-            for (let s = 0; s < slides.length - 4; s++){
-                let s1 = slides[s];
-                let s2 = slides[s + 1];
-                let score = compareSlides(s1, s2);
-
-                let s3 = slides[s + 2];
-                let score2 = compareSlides(s1, s3);
-
-                let s4 = slides[s + 3];
-                let score3 = compareSlides(s1, s4);
-
-                //console.log(`score1: ${score} score2: ${score2}`);
-                if (score2 > score && score3 < score2) {
-                    var b = slides[s+2];
-                    slides[s+2] = slides[s+1];
-                    slides[s+1] = b;
-                }
-                else if (score3 > score) {
-                    var c = slides[s+3];
-                    slides[s+3] = slides[s+1];
-                    slides[s+1] = c;
-                }
-            }
-        }
-    }
-
     // let maxLength = Math.max(horizontalSlides.length, verticalSlides.length);
 
     // for(var i = 0; i < maxLength; i++) {
@@ -288,6 +270,129 @@ function putTogether(photos: Photo[], finalSort: Boolean) {
     return slides;
 }
 
+function threelooksort(slides: Slide[]) {
+    for (let l = 0; l < 15; l++) {
+        for (let s = 0; s < slides.length - 4; s++) {
+            let s1 = slides[s];
+            let s2 = slides[s + 1];
+            let score = compareSlides(s1, s2);
+            let s3 = slides[s + 2];
+            let score2 = compareSlides(s1, s3);
+            let s4 = slides[s + 3];
+            let score3 = compareSlides(s1, s4);
+            //console.log(`score1: ${score} score2: ${score2}`);
+            if (score2 > score && score3 < score2) {
+                var b = slides[s + 2];
+                slides[s + 2] = slides[s + 1];
+                slides[s + 1] = b;
+            }
+            else if (score3 > score) {
+                var c = slides[s + 3];
+                slides[s + 3] = slides[s + 1];
+                slides[s + 1] = c;
+            }
+        }
+    }
+    return slides;
+}
+
+function getRandomInt(max) {
+    return Math.floor(Math.random() * Math.floor(max));
+}
+
+function randomSlideSort(slides: Slide[], numberOfChecks = 100) {
+    
+    console.log('slides length', slides.length);
+    for (let indexSlide = 0; indexSlide < slides.length - 1; indexSlide++){
+        let slideScores: slideScore[] = [];
+        
+        for (let cpSlide = 0; cpSlide < numberOfChecks; cpSlide++){
+            // pick a random
+            if (indexSlide === cpSlide) continue;
+            let randomId = getRandomInt(slides.length);
+            console.log('randomId', randomId);
+            let score = compareSlides(slides[indexSlide], slides[randomId]);
+           
+            let sc: slideScore = { id: indexSlide,
+                checkid: cpSlide,
+                score: score
+            }
+            slideScores.push(sc);
+        }
+
+        let newSlideScores = slideScores.sort((s1, s2) => {
+            return s2.score - s1.score;
+        });
+
+        console.log('ss', newSlideScores[0], newSlideScores[1]);
+        let slideToSwap = newSlideScores[0].checkid;
+        [slides[indexSlide + 1], slides[slideToSwap]] = [slides[slideToSwap], slides[indexSlide + 1]];
+        console.log('slide on: ', indexSlide);
+    }
+    return slides;
+}
+
+function sortSlidesBrute(slides: Slide[], divideSlidesCheck = 100) {
+    
+    console.log('slides length', slides.length);
+    for (let indexSlide = 0; indexSlide < slides.length - 1; indexSlide++){
+        let slideScores: slideScore[] = [];
+        
+        for (let cpSlide = 0; cpSlide < slides.length / divideSlidesCheck; cpSlide++){
+            if (indexSlide === cpSlide) continue;
+            let score = compareSlides(slides[indexSlide], slides[cpSlide]);
+           
+            let sc: slideScore = { id: indexSlide,
+                checkid: cpSlide,
+                score: score
+            }
+            slideScores.push(sc);
+        }
+
+        let newSlideScores = slideScores.sort((s1, s2) => {
+            return s2.score - s1.score;
+        });
+
+        let slideToSwap = newSlideScores[0].checkid;
+        [slides[indexSlide + 1], slides[slideToSwap]] = [slides[slideToSwap], slides[indexSlide + 1]];
+        console.log('slide on: ', indexSlide);
+    }
+    return slides;
+}
+
+function singleSort(slides: Slide[]) {
+    
+    console.log('slides length', slides.length);
+    let plus1 = slides.length / 2 + 1;
+    for (let indexSlide = slides.length / 2 ; indexSlide < plus1; indexSlide++){
+        let slideScores: slideScore[] = [];
+        
+        for (let cpSlide = 0; cpSlide < slides.length; cpSlide++){
+            if (indexSlide === cpSlide) continue;
+            let score = compareSlides(slides[indexSlide], slides[cpSlide]);
+           
+            let sc: slideScore = { id: indexSlide,
+                checkid: cpSlide,
+                score: score
+            }
+            slideScores.push(sc);
+        }
+
+        let newSlideScores = slideScores.sort((s1, s2) => {
+            return s2.score - s1.score;
+        });
+
+        let newSlides: Slide[] = []
+        newSlideScores.forEach(ss => {
+            newSlides.push({photos: slides[ss.checkid].photos , tags: slides[ss.checkid].tags, checked: true});
+        });
+
+        slides = [...newSlides];
+        console.log('slide on: ', indexSlide);
+    }
+    return slides;
+}
+
 function reset() {
     numPhotos = 0;
     photos = [];
@@ -296,9 +401,9 @@ function reset() {
 
 const files = [
     // "./files/a_example.txt",
-    "./files/b_lovely_landscapes.txt",
-    "./files/c_memorable_moments.txt",
-    "./files/d_pet_pictures.txt",
+    // "./files/b_lovely_landscapes.txt",
+    // "./files/c_memorable_moments.txt",
+    // "./files/d_pet_pictures.txt",
     "./files/e_shiny_selfies.txt"
 ];
 
@@ -309,29 +414,24 @@ files.forEach(f => {
     // Solve this file
     readFile(f);
     
-    let slides: Slide[] = tagSolve(true);
+    let slides: Slide[] = tagSolve();
+    //slides = threelooksort(slides);
+    //slides = randomSlideSort(slides, 10);
+    slides = singleSort(slides);
+
     // Create output
     let slideshow: Slideshow = {slides: slides,score: 0};
     slideshow.score = getScore(slideshow);
     let score1 = slideshow.score;
-
     console.log(f + ': Score1 ' + score1);
 
-    // let slides2: Slide[] = popularSolve();
+    // let slides3: Slide[] = tagSolve();
     // // Create output
-    // let slideshow2: Slideshow = {slides: slides2,score: 0};
-    // slideshow2.score = getScore(slideshow2);
-    // let score2 = slideshow2.score;
+    // let slideshow3: Slideshow = {slides: slides3,score: 0};
+    // slideshow3.score = getScore(slideshow3);
+    // let score3 = slideshow3.score;
 
-    console.log(f + ': Score1 ' + score1);
-
-    let slides3: Slide[] = tagSolve(false);
-    // Create output
-    let slideshow3: Slideshow = {slides: slides3,score: 0};
-    slideshow3.score = getScore(slideshow3);
-    let score3 = slideshow3.score;
-
-    console.log(f + ': Score3 ' + score3);
+    // console.log(f + ': Score3 ' + score3);
 
     createOutput(
         slideshow, 
